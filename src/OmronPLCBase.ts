@@ -1,3 +1,4 @@
+import { AddressDecoder } from './AddressDecoder';
 import * as omronConfig from './omronConfig';
 import { OmronError } from './OmronError';
 import { OmronPLCInterface } from './OmronPLCInterface';
@@ -19,6 +20,7 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
   protected series: string = "C";
   protected requestMap: Map<number, PendingRequest>;
   private omronStatistic: OmronStatistic;
+  private addressDecoder: AddressDecoder;
 
   constructor(protected host: string = omronConfig.DEFAULT_NETWORK_CONFIG.HOST,
     protected port: number = omronConfig.DEFAULT_NETWORK_CONFIG.PORT,
@@ -29,6 +31,7 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
     this.baseHeader[omronConfig.FINS_HEADER_FIELDS.DA1] = plcNode;
     this.baseHeader[omronConfig.FINS_HEADER_FIELDS.SA1] = pcNode;
     this.omronStatistic = new OmronStatistic();
+    this.addressDecoder = new AddressDecoder(this.series);
   }
 
   protected generateSID(): number {
@@ -38,75 +41,8 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
 
   protected abstract sendCommand(command: number[], params: Buffer, data?: Buffer): Promise<Buffer>;
 
-  protected decodeAddress(address: string): { area: number, address: number, nByte: number, bit: number } {
-    const match = address.match(/([A-Z]*)([0-9]*)\.?([0-9|x|X]*)/);
-
-    if (!match || match.length < 3) {
-      throw new Error(`'${address}' is not a valid FINS address`);
-    }
-
-    const [, areaCode, addressStr, sbit] = match;
-
-    const addressNum = parseInt(addressStr, 10);
-    const bit = parseInt(sbit || "0", 10);
-
-    if (!['CV', 'C'].includes(this.series)) {
-      throw new Error('Serie non valida. Usa "CV" o "C".');
-    }
-    let areatoSearch: string;
-    switch (areaCode.toUpperCase()) {
-      case 'D':
-      case 'DM':
-        areatoSearch = 'DM';
-        break;
-      case 'CIO':
-      case 'IO':
-        areatoSearch = 'CIO';
-        break;
-      case 'W':
-      case 'WR':
-        areatoSearch = 'WR';
-        break;
-      case 'H':
-      case 'HR':
-        areatoSearch = 'HR';
-        break;
-      case 'A':
-      case 'AR':
-        areatoSearch = 'AR';
-        break;
-      case 'TM':
-      case 'TIMER':
-      case 'TR':
-        areatoSearch = 'TIMER';
-        break;
-      case 'CN':
-      case 'COUNTER':
-      case 'CT':
-        areatoSearch = 'COUNTER';
-        break;
-      case 'EM':
-      case 'EX':
-      case 'E':
-        areatoSearch = 'EM';
-        break;
-      default:
-        throw new Error('Unsupported memory area');
-    }
-    areatoSearch = areatoSearch + (bit ? '_BIT' : '');
-    const value = omronConfig.MEMORY_AREAS[this.series].find(area => area.name === areatoSearch);
-
-    if (!value) {
-      throw new Error(`Area di memoria "${areaCode}" non trovata per la serie ${this.series}.`);
-    }
-
-    const { memoryAreaCode, nByte, maxAddress } = value;
-
-    if (addressNum > maxAddress) {
-      throw new Error(`Area di memoria "${address}" fuori da limite.`);
-    }
-
-    return { area: memoryAreaCode, address: addressNum, nByte, bit };
+  protected decodeAddress(address: string): { area: number, offset: number, nByte: number, bit: number } {
+    return this.addressDecoder.decodeAddress(address);
   }
 
   protected timeOut() {
@@ -187,7 +123,7 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
   }
 
   async readMemoryArea(address: string, length: number): Promise<number[]> {
-    const { area, address: decodedAddress, bit, nByte } = this.decodeAddress(address);
+    const { area, offset: decodedAddress, bit, nByte } = this.decodeAddress(address);
     const params = Buffer.from([
       area,
       (decodedAddress >> 8) & 0xFF, decodedAddress & 0xFF, bit,
@@ -198,7 +134,7 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
   }
 
   async writeMemoryArea(address: string, data: number[]): Promise<void> {
-    const { area, address: decodedAddress, bit, nByte } = this.decodeAddress(address);
+    const { area, offset: decodedAddress, bit, nByte } = this.decodeAddress(address);
     const nElements = data.length
 
     const params = Buffer.from([

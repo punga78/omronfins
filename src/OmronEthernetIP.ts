@@ -1,268 +1,239 @@
-// OmronEthernetIP.ts
+import net from 'net';
+import { AssemblyInfo, CIPService, ComplexDataType, DeviceIdentity, EtherNetIPPacket } from './ethernetIpConstants';
+import { ReadOperation } from './operations/ReadOperation';
+import { WriteOperation } from './operations/WriteOperation';
+import { ReadAttributeOperation } from './operations/ReadAttributeOperation';
+import { ReadComplexVariableOperation } from './operations/ReadComplexVariableOperation';
+import { EstablishIOConnectionOperation } from './operations/EstablishIOConnectionOperation';
+import { GetAssemblyListOperation } from './operations/GetAssemblyListOperation';
+import { ReadDeviceIdentityOperation } from './operations/ReadDeviceIdentityOperation';
+import { GetSymbolListOperation } from './operations/GetSymbolListOperation';
+import { ReadAssemblyDataOperation } from './operations/ReadAssemblyDataOperation';
+import { ConfigureAssemblyOperation } from './operations/ConfigureAssemblyOperation';
+import { WriteMemoryAreaOperation } from './operations/WriteMemoryAreaOperation';
+import { ReadMemoryAreaOperation } from './operations/ReadMemoryAreaOperation';
 
-import { Socket } from 'net';
-import * as dgram from 'dgram';
-import * as crypto from 'crypto';
-import { EncapsulationHeader, CIPMessage, SessionInfo, DeviceInfo } from './ethernetIpTypes';
-import { ENCAPSULATION_COMMANDS, CIP_COMMON_SERVICES, CIP_OBJECT_CLASSES, ETHERNET_IP_PORTS } from './ethernetIpConstants';
-import { OmronPLCInterface } from './OmronPLCInterface';
+export class OmronEthernetIp {
+    private host: string;
+    private port: number;
+    private socket: net.Socket | null = null;
+    private sessionHandle: number = 0;
 
-export class OmronEthernetIP implements OmronPLCInterface {
-  private tcpSocket: Socket;
-  private udpSocket: dgram.Socket;
-  private sessionInfo: SessionInfo;
-  private deviceInfo: DeviceInfo;
+    constructor(host: string, port: number = 44818) {
+        this.host = host;
+        this.port = port;
+    }
 
-  constructor(private ipAddress: string) {
-    this.tcpSocket = new Socket();
-    this.udpSocket = dgram.createSocket('udp4');
-    this.sessionInfo = {} as SessionInfo;
-    this.deviceInfo = {} as DeviceInfo;
-  }
-
-  private async connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.tcpSocket.connect(ETHERNET_IP_PORTS.TCP, this.ipAddress, () => {
-        this.registerSession()
-          .then(() => resolve())
-          .catch(reject);
-      });
-    });
-  }
-
-  private async registerSession(): Promise<void> {
-    const registerSessionRequest: EncapsulationHeader = {
-      command: ENCAPSULATION_COMMANDS.REGISTER_SESSION,
-      length: 4,
-      sessionHandle: 0,
-      status: 0,
-      senderContext: new Uint8Array(8),
-      options: 0
-    };
-
-    // Implementare la logica per inviare la richiesta e gestire la risposta
-    // Impostare this.sessionInfo con le informazioni della sessione
-  }
-
-  public async close(): Promise<void> {
-    return new Promise((resolve) => {
-      this.tcpSocket.end(() => {
-        this.udpSocket.close(() => {
-          resolve();
+    public async connect(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.socket = new net.Socket();
+            this.socket.connect(this.port, this.host, () => {
+                this.registerSession().then(resolve).catch(reject);
+            });
+            this.socket.on('error', reject);
         });
-      });
-    });
-  }
-
-  public async readMemoryArea(address: string, length: number): Promise<Buffer> {
-    // Analizza l'indirizzo
-    const { area, channel, bit } = this.parseAddress(address);
-  
-    // Costruisci il percorso CIP
-    const path = this.buildMemoryAreaPath(area, channel, bit);
-  
-    // Costruisci il messaggio CIP
-    const cipMessage: CIPMessage = {
-      service: CIP_COMMON_SERVICES.READ_DATA,
-      path: path,
-      data: Buffer.alloc(2)
-    };
-  
-    // Imposta la lunghezza dei dati da leggere
-    //TODO:cipMessage.data!.writeUInt16LE(length, 0);
-  
-    // Invia la richiesta e ottieni la risposta
-    const response = await this.sendRRData(cipMessage);
-  
-    // Verifica lo stato della risposta
-    const status = response.readUInt16LE(0);
-    if (status !== 0) {
-      throw new Error(`CIP error: ${status}`);
     }
-  
-    // Estrai i dati dalla risposta
-    return Buffer.from(response.subarray(2));
-  }
-  
-  private parseAddress(address: string): { area: number, channel: number, bit?: number } {
-    const match = address.match(/([A-Z]):(\d+)(\.(\d+))?/);
-    if (!match) {
-      throw new Error('Invalid address format');
+
+    private async registerSession(): Promise<void> {
+        const registerPacket: EtherNetIPPacket = {
+            command: 0x65,
+            length: 4,
+            sessionHandle: 0,
+            status: 0,
+            senderContext: Buffer.alloc(8),
+            options: 0,
+            data: Buffer.from([1, 0, 0, 0])
+        };
+
+        const response = await this.sendPacket(registerPacket);
+        this.sessionHandle = response.sessionHandle;
     }
-  
-    const areaCode = match[1];
-    const channel = parseInt(match[2], 10);
-    const bit = match[4] ? parseInt(match[4], 10) : undefined;
-  
-    let area: number;
-    switch (areaCode) {
-      case 'C':
-        area = 0x80; // CIO area
-        break;
-      case 'W':
-        area = 0x81; // Work area
-        break;
-      case 'H':
-        area = 0x82; // Holding area
-        break;
-      case 'A':
-        area = 0xB0; // Auxiliary area
-        break;
-      case 'D':
-        area = 0x83; // Data area
-        break;
-      default:
-        throw new Error('Unknown memory area');
-    }
-  
-    return { area, channel, bit };
-  }
-  
-  private buildMemoryAreaPath(area: number, channel: number, bit?: number): Buffer {
-    const path = Buffer.alloc(4);
-    path.writeUInt8(0x91, 0); // Path segment for symbolic addressing
-    path.writeUInt8(area, 1);
-    path.writeUInt16LE(channel, 2);
-    
-    if (bit !== undefined) {
-      const extendedPath = Buffer.alloc(6);
-      path.copy(extendedPath);
-      extendedPath.writeUInt16LE(bit, 4);
-      return extendedPath;
-    }
-  
-    return path;
-  }
-  
-  public async writeMemoryArea(address: string, data: Buffer): Promise<void> {
-    // Implementare la logica per scrivere nell'area di memoria
-    throw new Error("Method not implemented.");
-  }
 
-  public async run(): Promise<void> {
-    // Implementare la logica per avviare il PLC
-    throw new Error("Method not implemented.");
-  }
+    private async sendPacket(packet: EtherNetIPPacket): Promise<EtherNetIPPacket> {
+        return new Promise((resolve, reject) => {
+            if (!this.socket) {
+                reject(new Error('Socket not connected'));
+                return;
+            }
 
-  public async stop(): Promise<void> {
-    // Implementare la logica per fermare il PLC
-    throw new Error("Method not implemented.");
-  }
+            const buffer = this.packetToBuffer(packet);
+            this.socket.write(buffer);
 
-  public async readControllerData(): Promise<Buffer> {
-    // Implementare la logica per leggere i dati del controller
-    throw new Error("Method not implemented.");
-  }
-
-  public async readControllerStatus(): Promise<Buffer> {
-    // Implementare la logica per leggere lo stato del controller
-    throw new Error("Method not implemented.");
-  }
-
-  private async sendRRData(cipMessage: CIPMessage): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const interfaceHandle = 0;
-      const timeout = 10; // secondi
-  
-      const encapsulationHeader: EncapsulationHeader = {
-        command: ENCAPSULATION_COMMANDS.SEND_RR_DATA,
-        length: 16 + cipMessage.path.length + (cipMessage.data ? cipMessage.data.length : 0),
-        sessionHandle: this.sessionInfo.sessionHandle,
-        status: 0,
-        senderContext: crypto.randomBytes(8),
-        options: 0
-      };
-  
-      const buffer = Buffer.alloc(24 + encapsulationHeader.length);
-      
-      buffer.writeUInt16LE(encapsulationHeader.command, 0);
-      buffer.writeUInt16LE(encapsulationHeader.length, 2);
-      buffer.writeUInt32LE(encapsulationHeader.sessionHandle, 4);
-      buffer.writeUInt32LE(encapsulationHeader.status, 8);
-      buffer.set(encapsulationHeader.senderContext, 12);
-      buffer.writeUInt32LE(encapsulationHeader.options, 20);
-  
-      buffer.writeUInt32LE(interfaceHandle, 24);
-      buffer.writeUInt16LE(timeout, 28);
-  
-      buffer.writeUInt16LE(cipMessage.service, 30);
-      buffer.writeUInt8(cipMessage.path.length / 2, 32);
-      buffer.set(cipMessage.path, 33);
-      
-      if (cipMessage.data) {
-        buffer.set(cipMessage.data, 33 + cipMessage.path.length);
-      }
-  
-      this.tcpSocket.write(buffer, (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-  
-        this.tcpSocket.once('data', (data) => {
-          const status = data.readUInt32LE(8);
-          if (status !== 0) {
-            reject(new Error(`EtherNet/IP error: ${status}`));
-            return;
-          }
-  
-          const cipData = Buffer.from(data.subarray(30));
-          resolve(cipData);
+            this.socket.once('data', (data) => {
+                resolve(this.bufferToPacket(data));
+            });
         });
-      });
-    });
-  }
-  
-  private async sendUnitData(cipMessage: CIPMessage): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const interfaceHandle = 0;
-  
-      const encapsulationHeader: EncapsulationHeader = {
-        command: ENCAPSULATION_COMMANDS.SEND_UNIT_DATA,
-        length: 16 + cipMessage.path.length + (cipMessage.data ? cipMessage.data.length : 0),
-        sessionHandle: this.sessionInfo.sessionHandle,
-        status: 0,
-        senderContext: crypto.randomBytes(8),
-        options: 0
-      };
-  
-      const buffer = Buffer.alloc(24 + encapsulationHeader.length);
-      
-      buffer.writeUInt16LE(encapsulationHeader.command, 0);
-      buffer.writeUInt16LE(encapsulationHeader.length, 2);
-      buffer.writeUInt32LE(encapsulationHeader.sessionHandle, 4);
-      buffer.writeUInt32LE(encapsulationHeader.status, 8);
-      buffer.set(encapsulationHeader.senderContext, 12);
-      buffer.writeUInt32LE(encapsulationHeader.options, 20);
-  
-      buffer.writeUInt32LE(interfaceHandle, 24);
-      buffer.writeUInt16LE(0, 28); // timeout not used for UDP
-  
-      buffer.writeUInt16LE(cipMessage.service, 30);
-      buffer.writeUInt8(cipMessage.path.length / 2, 32);
-      buffer.set(cipMessage.path, 33);
-      
-      if (cipMessage.data) {
-        buffer.set(cipMessage.data, 33 + cipMessage.path.length);
-      }
-  
-      this.udpSocket.send(buffer, ETHERNET_IP_PORTS.UDP, this.ipAddress, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
+    }
+
+
+    private packetToBuffer(packet: EtherNetIPPacket): Buffer {
+        const headerSize = 24; // Size of the EtherNet/IP encapsulation header
+        const totalSize = headerSize + packet.data.length;
+
+        const buffer = Buffer.alloc(totalSize);
+
+        // Write header
+        buffer.writeUInt16LE(packet.command, 0);
+        buffer.writeUInt16LE(packet.length, 2);
+        buffer.writeUInt32LE(packet.sessionHandle, 4);
+        buffer.writeUInt32LE(packet.status, 8);
+        packet.senderContext.copy(buffer, 12, 0, 8); // Copy 8 bytes of sender context
+        buffer.writeUInt32LE(packet.options, 20);
+
+        // Write data
+        packet.data.copy(buffer, headerSize);
+
+        return buffer;
+    }
+
+    private bufferToPacket(buffer: Buffer): EtherNetIPPacket {
+        const packet: EtherNetIPPacket = {
+            command: buffer.readUInt16LE(0),
+            length: buffer.readUInt16LE(2),
+            sessionHandle: buffer.readUInt32LE(4),
+            status: buffer.readUInt32LE(8),
+            senderContext: buffer.subarray(12, 20),
+            options: buffer.readUInt32LE(20),
+            data: buffer.subarray(24)
+        };
+
+        return packet;
+    }
+
+    private async sendCIPMessage(service: CIPService, path: Buffer, data: Buffer): Promise<Buffer> {
+        const cipMessage = { service, path, data };
+        const packet: EtherNetIPPacket = {
+            command: 0x6F,
+            length: 2 + path.length + data.length,
+            sessionHandle: this.sessionHandle,
+            status: 0,
+            senderContext: Buffer.alloc(8),
+            options: 0,
+            data: Buffer.concat([Buffer.from([service, path.length / 2]), path, data])
+        };
+
+        const response = await this.sendPacket(packet);
+        if (response.status !== 0) {
+            throw new Error(`CIP error: ${response.status}`);
         }
-      });
-    });
-  }
 
-  public async sendImplicitMessage(assemblyInstance: number, data: Buffer): Promise<void> {
-    const cipMessage: CIPMessage = {
-      service: CIP_COMMON_SERVICES.SET_ATTRIBUTE_ALL,
-      path: Buffer.from([0x20, assemblyInstance]),
-      data: data
-    };
+        return response.data.subarray(2);
+    }
 
-    return this.sendUnitData(cipMessage);
-  }
+    public async readVariable(variable: string, dataType: string): Promise<any> {
+        const operation = new ReadOperation(this.sessionHandle, variable, dataType);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async writeVariable(variable: string, dataType: string, value: any): Promise<any> {
+        const operation = new WriteOperation(this.sessionHandle, variable, dataType, value);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async readAttribute(classId: number, instanceId: number, attributeId: number): Promise<any> {
+        const operation = new ReadAttributeOperation(this.sessionHandle, classId, instanceId, attributeId);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async readMemoryArea(address: string, length: number): Promise<number[]> {
+        const operation = new ReadMemoryAreaOperation(this.sessionHandle, address, length);
+        const { service, path, data: readData } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, readData);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async writeMemoryArea(address: string, data: number[]): Promise<void> {
+        const operation = new WriteMemoryAreaOperation(this.sessionHandle, address, data);
+        const { service, path, data: writeData } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, writeData);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async getAssemblyList(): Promise<AssemblyInfo[]> {
+        const operation = new GetAssemblyListOperation(this.sessionHandle);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async readDeviceIdentity(): Promise<DeviceIdentity> {
+        const operation = new ReadDeviceIdentityOperation(this.sessionHandle);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async configureAssembly(assemblyInstanceId: number, configurationData: Buffer): Promise<void> {
+        const operation = new ConfigureAssemblyOperation(this.sessionHandle, assemblyInstanceId, configurationData);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async readAssemblyData(assemblyInstanceId: number): Promise<Buffer> {
+        const operation = new ReadAssemblyDataOperation(this.sessionHandle, assemblyInstanceId);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async establishIOConnection(assemblyInstance: number, rpi: number, isProducer: boolean): Promise<any> {
+        const operation = new EstablishIOConnectionOperation(this.sessionHandle, assemblyInstance, rpi, isProducer);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public close(): void {
+        if (this.socket) {
+            this.socket.destroy();
+            this.socket = null;
+        }
+        this.sessionHandle = 0;
+    }
+
+    public async getSymbolList(): Promise<string[]> {
+
+        const operation = new GetSymbolListOperation(this.sessionHandle);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async readComplexVariable(tagName: string, dataType: ComplexDataType): Promise<any> {
+        const operation = new ReadComplexVariableOperation(this.sessionHandle, tagName, dataType);
+        const { service, path, data } = operation.getPacket();
+        const responseBuffer = await this.sendCIPMessage(service, path, data);
+        return operation.parseResponse(responseBuffer);
+    }
+
+    public async sendMultipleServicePacket(services: Array<{ service: CIPService, path: Buffer, data: Buffer }>): Promise<Buffer[]> {
+        const multipleServiceData = Buffer.concat(
+            services.map(s => Buffer.concat([
+                Buffer.from([s.service, s.path.length / 2]),
+                s.path,
+                s.data
+            ]))
+        );
+
+        const response = await this.sendCIPMessage(CIPService.MULTIPLE_SERVICE_PACKET, Buffer.alloc(0), multipleServiceData);
+
+        // Parse the response and return an array of individual service responses
+        const results: Buffer[] = [];
+        let offset = 2; // Skip the first two bytes (number of services)
+        while (offset < response.length) {
+            const serviceResponseLength = response.readUInt16LE(offset);
+            results.push(response.subarray(offset + 2, offset + 2 + serviceResponseLength));
+            offset += 2 + serviceResponseLength;
+        }
+
+        return results;
+    }
+
 }
