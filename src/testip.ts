@@ -2,7 +2,7 @@ import { ComplexDataType } from './ethernetIpConstants';
 import { OmronEthernetIp } from './OmronEthernetIp';
 
 async function main() {
-  const omronEthernetIp = new OmronEthernetIp('192.168.0.1', 44818);
+  const omronEthernetIp = new OmronEthernetIp('192.168.250.1', 44818);
 
   try {
     // Connect to the PLC
@@ -66,12 +66,12 @@ async function main() {
     console.log('Symbol list:', symbolList);
 
     // Read complex variable
-    console.log('Reading complex variable...');
+    /*console.log('Reading complex variable...');
     const complexVariable = await omronEthernetIp.readComplexVariable('tagName', "INT");
     console.log('Complex variable:', complexVariable);
 
     // Send multiple service packet
-    /*TODOconsole.log('Sending multiple service packet...');
+    TODOconsole.log('Sending multiple service packet...');
     const servicePacket = await omronEthernetIp.sendMultipleServicePacket([
       { service: 'service1', path: Buffer.from([0x00]), data: Buffer.from([0x01]) }
     ]);

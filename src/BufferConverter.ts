@@ -1,4 +1,4 @@
-class BufferConverter {
+export class BufferConverter {
     private buffer: Buffer;
   
     constructor(buffer: Buffer) {
@@ -84,8 +84,32 @@ class BufferConverter {
     }
   
     toAscii(): string {
-      return this.buffer.reduce((acc, byte) => {
-        return acc + (byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
+      //console.log(this.buffer);
+      const tempresult = this.buffer.reduce((acc, byte) => {
+        return acc + (byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : ' ');
+      }, '');
+      //console.log(tempresult);
+      return  tempresult;
+    }
+    
+    toAsciiBE(): string {
+      const length = this.buffer.length;
+      const swappedBuffer = Buffer.alloc(length);
+    
+      // Swappa i byte a due a due
+      for (let i = 0; i < length; i += 2) {
+        if (i + 1 < length) {
+          swappedBuffer[i] = this.buffer[i + 1];
+          swappedBuffer[i + 1] = this.buffer[i];
+        } else {
+          // Se la lunghezza del buffer è dispari, copia l'ultimo byte così com'è goige u anb lealg oinrta aids lo eefilic
+          swappedBuffer[i] = this.buffer[i];
+        }
+      }
+    
+      // Converti il buffer swappato in una stringa ASCII leggibile
+      return swappedBuffer.reduce((acc, byte) => {
+        return acc + (byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : ' ');
       }, '');
     }
   }

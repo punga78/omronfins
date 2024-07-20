@@ -375,7 +375,6 @@ export enum DataSegmentType {
   ANSI_EXTENDED_SYMBOL = 0x11
 }
 
-
 export const CONNECTION_MANAGER_PATH = Buffer.from([
   SegmentType.CLASS_ID, ObjectClass.CONNECTION_MANAGER,
   SegmentType.INSTANCE_ID, InstanceID.CONNECTION_MANAGER

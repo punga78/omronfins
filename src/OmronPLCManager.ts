@@ -4,13 +4,14 @@ import { OmronPLCInterface } from './OmronPLCInterface';
 import { OmronPLCUDP } from './OmronPLCUDP';
 import { OmronPLCTCP } from './OmronPLCTCP';
 import { EventEmitter } from 'events';
+import { Plcdata, PlcStatus } from './omronConfig';
 
 interface MemoryArea {
   name: string;
   address: string;
   length: number;
   autoRead: boolean;
-  lastValue?: number[];
+  lastValue?: number[] | string;
 }
 
 interface OmronPLCManagerOptions {
@@ -20,6 +21,7 @@ interface OmronPLCManagerOptions {
   pcNode?: number;
   protocol: 'udp' | 'tcp';
   pollingInterval: number;
+  timeout?: number;
 }
 
 export class OmronPLCManager extends EventEmitter {
@@ -33,9 +35,9 @@ export class OmronPLCManager extends EventEmitter {
     this.pollingInterval = options.pollingInterval;
 
     if (options.protocol === 'udp') {
-      this.plc = new OmronPLCUDP(options.host, options.port, options.plcNode, options.pcNode);
+      this.plc = new OmronPLCUDP({host :options.host, port: options.port, plcNodeNumber: options.plcNode, nodeNumber: options.pcNode, timeout: options.timeout });
     } else {
-      this.plc = new OmronPLCTCP(options.host, options.port, options.plcNode, options.pcNode);
+      this.plc = new OmronPLCTCP({host :options.host, port: options.port, plcNodeNumber: options.plcNode, nodeNumber: options.pcNode, timeout: options.timeout });
     }
   }
 
@@ -59,16 +61,13 @@ export class OmronPLCManager extends EventEmitter {
     }
   }
 
-  public async readMemoryArea(name: string): Promise<number[]> {
+  public async readMemoryArea(name: string): Promise<number[] | string> {
     const area = this.getMemoryArea(name);
     return this.plc.readMemoryArea(area.address, area.length);
   }
 
-  public async writeMemoryArea(name: string, data: number[]): Promise<void> {
+  public async writeMemoryArea(name: string, data: number[] | string): Promise<void> {
     const area = this.getMemoryArea(name);
-    if (data.length !== area.length * 2) {  // 2 bytes per word
-      throw new Error(`Data length mismatch for ${name}`);
-    }
     await this.plc.writeMemoryArea(area.address, data);
   }
 
@@ -106,7 +105,7 @@ export class OmronPLCManager extends EventEmitter {
     }
   }
 
-  private arraysAreEqual(arr1: number[], arr2: number[]) {
+  private arraysAreEqual(arr1: number[] | string, arr2: number[] | string) {
     if (arr1.length !== arr2.length) return false;
     for (let i = 0; i < arr1.length; i++) {
       if (arr1[i] !== arr2[i]) return false;
@@ -119,6 +118,7 @@ export class OmronPLCManager extends EventEmitter {
       if (area.autoRead) {
         try {
           const newValue = await this.plc.readMemoryArea(area.address, area.length);
+          //console.log(area.name, area.address, newValue)
           if (!area.lastValue || !this.arraysAreEqual(newValue,area.lastValue)) {
             area.lastValue = newValue;
             this.emit('dataChanged', area.name, newValue);
@@ -149,11 +149,16 @@ export class OmronPLCManager extends EventEmitter {
     return this.plc.stop();
   }
 
-  public async readControllerData(): Promise<Buffer> {
+  public async readControllerData(): Promise<Plcdata> {
     return this.plc.readControllerData();
   }
 
-  public async readControllerStatus(): Promise<Buffer> {
+  public async readControllerDate(): Promise<Date> {
+    return this.plc.readControllerDate();
+  }
+
+
+  public async readControllerStatus(): Promise<PlcStatus> {
     return this.plc.readControllerStatus();
   }
 

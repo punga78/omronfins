@@ -1,17 +1,14 @@
 // OmronPLCUDP.ts
 import dgram from 'dgram';
 import * as omronConfig from './omronConfig';
-import { OmronPLCBase } from './OmronPLCBase';
+import { OmronConfig, OmronPLCBase } from './OmronPLCBase';
 
 export class OmronPLCUDP extends OmronPLCBase {
     private client: dgram.Socket;
     private isSocketBound: boolean = false;
 
-    constructor(host: string = omronConfig.DEFAULT_NETWORK_CONFIG.HOST,
-        port: number = omronConfig.DEFAULT_NETWORK_CONFIG.PORT,
-        plcNode: number = omronConfig.DEFAULT_NETWORK_CONFIG.PLC_NODE_NUMBER,
-        pcNode: number = omronConfig.DEFAULT_NETWORK_CONFIG.NODE_NUMBER) {
-        super(host, port, plcNode, pcNode);
+    constructor(config: OmronConfig = {}) {
+        super(config);
         this.client = dgram.createSocket('udp4');
         this.client.on('message', this.handleResponse.bind(this));
         this.client.on('error', this.handleError.bind(this));
@@ -20,7 +17,7 @@ export class OmronPLCUDP extends OmronPLCBase {
     private async ensureSocketBound(): Promise<void> {
         if (!this.isSocketBound) {
             return new Promise((resolve, reject) => {
-                this.client.bind(0, "0.0.0.0", () => {
+                this.client.bind(0, () => {
                     this.isSocketBound = true;
                     resolve();//
                 });
@@ -60,7 +57,7 @@ export class OmronPLCUDP extends OmronPLCBase {
                 this.requestMap.delete(sid);
                 this.timeOut();
                 reject(new Error('Request timeout'));
-            }, omronConfig.DEFAULT_TIMEOUT);
+            }, this.timeoutMs);
 
             this.requestMap.set(sid, {
                 resolve,

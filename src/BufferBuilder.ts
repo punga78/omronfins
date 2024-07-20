@@ -1,9 +1,10 @@
-class BufferBuilder {
+export class BufferBuilder {
     private data: number[] = [];
   
     constructor() {}
   
     fromNumbers(numbers: number[], bytesPerNumber: 1 | 2 | 4 = 2): this {
+      this.data = [];
       numbers.forEach(number => {
         switch (bytesPerNumber) {
           case 1:
@@ -26,6 +27,7 @@ class BufferBuilder {
     }
   
     fromString(str: string, format: 'hex' | 'dec' | 'oct' | 'bin' = 'hex', bytesPerGroup: 1 | 2 | 4 = 1): this {
+      this.data = [];
       const groups = str.split(/\s+/);
       groups.forEach(group => {
         let value: number;
@@ -49,6 +51,7 @@ class BufferBuilder {
     }
   
     fromBCD(numbers: number[], bytesPerNumber: 1 | 2 | 4 = 2): this {
+      this.data = [];
       numbers.forEach(number => {
         let bcdValue = 0;
         for (let i = 0; i < bytesPerNumber * 2; i++) {
@@ -61,20 +64,37 @@ class BufferBuilder {
     }
   
     fromAscii(str: string): this {
+      this.data = [];
       for (let i = 0; i < str.length; i++) {
         this.data.push(str.charCodeAt(i));
       }
       return this;
+    }
+
+    fromAsciiBE(str: string): this {
+      this.data = [];
+      const length = str.length;
+      // Converte la stringa in un array di codici ASCII e swappa i byte a due a due
+      for (let i = 0; i < length; i += 2) {
+        if (i + 1 < length) {
+          this.data.push(str.charCodeAt(i + 1));
+          this.data.push(str.charCodeAt(i));
+        } else {
+          // Se la lunghezza della stringa è dispari, aggiungi l'ultimo carattere così com'è
+          this.data.push(str.charCodeAt(i));
+        }
+      }
+      return this;
+    }
+  
+    count(): number {
+      return this.data.length;
     }
   
     build(): Buffer {
       return Buffer.from(this.data);
     }
   
-    clear(): this {
-      this.data = [];
-      return this;
-    }
   }
   
 /*   // Esempi di utilizzo:

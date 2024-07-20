@@ -33,46 +33,45 @@ export const FINS_COMMANDS = {
   MEMORY_AREA_FILL: [0x01, 0x03], // Riempimento area di memoria
   MULTIPLE_MEMORY_AREA_READ: [0x01, 0x04], // Lettura multipla area di memoria
   MEMORY_AREA_TRANSFER: [0x01, 0x05], // Trasferimento area di memoria
-  PARAMETER_AREA_READ: [0x02, 0x01], // Lettura area parametri
-  PARAMETER_AREA_WRITE: [0x02, 0x02], // Scrittura area parametri
-  PARAMETER_AREA_CLEAR: [0x02, 0x03], // Cancellazione area parametri
-  PROGRAM_AREA_PROTECT: [0x03, 0x01], // Protezione area programma
-  PROGRAM_AREA_PROTECT_CLEAR: [0x03, 0x02], // Rimozione protezione area programma
-  PROGRAM_AREA_READ: [0x04, 0x01], // Lettura area programma
-  PROGRAM_AREA_WRITE: [0x04, 0x02], // Scrittura area programma
-  PROGRAM_AREA_CLEAR: [0x04, 0x03], // Cancellazione area programma
-  RUN: [0x08, 0x01], // Avvio
-  STOP: [0x08, 0x02], // Arresto
-  CONTROLLER_DATA_READ: [0x09, 0x01], // Lettura dati del controller
-  CONNECTION_DATA_READ: [0x0A, 0x01], // Lettura dati di connessione
-  CONTROLLER_STATUS_READ: [0x0B, 0x01], // Lettura stato del controller
-  CYCLE_TIME_READ: [0x0C, 0x01], // Lettura tempo di ciclo
-  CLOCK_READ: [0x0D, 0x01], // Lettura orologio
-  CLOCK_WRITE: [0x0D, 0x02], // Scrittura orologio
-  MESSAGE_READ: [0x0E, 0x01], // Lettura messaggio
-  MESSAGE_CLEAR: [0x0E, 0x02], // Cancellazione messaggio
-  FAL_FALS_READ: [0x0F, 0x01], // Lettura FAL/FALS
-  ACCESS_RIGHT_ACQUIRE: [0x10, 0x01], // Acquisizione diritti di accesso
-  ACCESS_RIGHT_FORCED_ACQUIRE: [0x10, 0x02], // Acquisizione forzata diritti di accesso
-  ACCESS_RIGHT_RELEASE: [0x10, 0x03], // Rilascio diritti di accesso
-  ERROR_CLEAR: [0x11, 0x01], // Cancellazione errore
-  ERROR_LOG_READ: [0x12, 0x01], // Lettura log errori
-  ERROR_LOG_CLEAR: [0x12, 0x02], // Cancellazione log errori
-  FILE_NAME_READ: [0x13, 0x01], // Lettura nome file
-  SINGLE_FILE_READ: [0x14, 0x01], // Lettura file singolo
-  SINGLE_FILE_WRITE: [0x14, 0x02], // Scrittura file singolo
-  MEMORY_CARD_FORMAT: [0x15, 0x01], // Formattazione scheda di memoria
-  FILE_DELETE: [0x15, 0x02], // Cancellazione file
-  VOLUME_LABEL_CREATE_DELETE: [0x16, 0x01], // Creazione/cancellazione etichetta volume
-  FILE_COPY: [0x17, 0x01], // Copia file
-  FILE_NAME_CHANGE: [0x18, 0x01], // Cambio nome file
-  FILE_DATA_CHECK: [0x19, 0x01], // Controllo dati file
-  MEMORY_AREA_FILE_TRANSFER: [0x1A, 0x01], // Trasferimento file area di memoria
-  PARAMETER_AREA_FILE_TRANSFER: [0x1B, 0x01], // Trasferimento file area parametri
-  PROGRAM_AREA_FILE_TRANSFER: [0x1C, 0x01], // Trasferimento file area programma
-  FORCED_SET_RESET: [0x1D, 0x01], // Impostazione/reset forzato
-  FORCED_SET_RESET_CANCEL: [0x1D, 0x02], // Annullamento impostazione/reset forzato
-  ABORTING_COMMANDS: [0x1E, 0x01] // Comandi di annullamento
+  // PARAMETER_AREA_READ: [0x02, 0x01], // Lettura area parametri
+  // PARAMETER_AREA_WRITE: [0x02, 0x02], // Scrittura area parametri
+  // PARAMETER_AREA_CLEAR: [0x02, 0x03], // Cancellazione area parametri
+  // PROGRAM_AREA_PROTECT: [0x03, 0x01], // Protezione area programma
+  // PROGRAM_AREA_PROTECT_CLEAR: [0x03, 0x02], // Rimozione protezione area programma
+  // PROGRAM_AREA_READ: [0x03, 0x03], // Lettura area programma
+  // PROGRAM_AREA_WRITE: [0x03, 0x04], // Scrittura area programma
+  // PROGRAM_AREA_CLEAR: [0x03, 0x05], // Cancellazione area programma
+  RUN: [0x04, 0x01], // Avvio
+  STOP: [0x04, 0x02], // Arresto
+  CONTROLLER_DATA_READ: [0x05, 0x01], // Lettura dati del controller
+  CONTROLLER_STATUS_READ: [0x06, 0x01], // Lettura stato del controller
+  CYCLE_TIME_READ: [0x07, 0x02], // Lettura tempo di ciclo
+  CLOCK_READ: [0x07, 0x01], // Lettura orologio
+  CLOCK_WRITE: [0x07, 0x02], // Scrittura orologio
+  // MESSAGE_READ: [0x08, 0x01], // Lettura messaggio
+  // MESSAGE_CLEAR: [0x08, 0x02], // Cancellazione messaggio
+  // FAL_FALS_READ: [0x09, 0x01], // Lettura FAL/FALS
+  // ACCESS_RIGHT_ACQUIRE: [0x0A, 0x01], // Acquisizione diritti di accesso
+  // ACCESS_RIGHT_FORCED_ACQUIRE: [0x0A, 0x02], // Acquisizione forzata diritti di accesso
+  // ACCESS_RIGHT_RELEASE: [0x0A, 0x03], // Rilascio diritti di accesso
+  // ERROR_CLEAR: [0x0B, 0x01], // Cancellazione errore
+  // ERROR_LOG_READ: [0x0C, 0x01], // Lettura log errori
+  // ERROR_LOG_CLEAR: [0x0C, 0x02], // Cancellazione log errori
+  // FILE_NAME_READ: [0x0D, 0x01], // Lettura nome file
+  // SINGLE_FILE_READ: [0x0E, 0x01], // Lettura file singolo
+  // SINGLE_FILE_WRITE: [0x0E, 0x02], // Scrittura file singolo
+  // MEMORY_CARD_FORMAT: [0x0F, 0x01], // Formattazione scheda di memoria
+  // FILE_DELETE: [0x0F, 0x02], // Cancellazione file
+  // VOLUME_LABEL_CREATE_DELETE: [0x10, 0x01], // Creazione/cancellazione etichetta volume
+  // FILE_COPY: [0x10, 0x02], // Copia file
+  // FILE_NAME_CHANGE: [0x10, 0x03], // Cambio nome file
+  // FILE_DATA_CHECK: [0x10, 0x04], // Controllo dati file
+  // MEMORY_AREA_FILE_TRANSFER: [0x10, 0x05], // Trasferimento file area di memoria
+  // PARAMETER_AREA_FILE_TRANSFER: [0x10, 0x06], // Trasferimento file area parametri
+  // PROGRAM_AREA_FILE_TRANSFER: [0x10, 0x07], // Trasferimento file area programma
+  // FORCED_SET_RESET: [0x11, 0x01], // Impostazione/reset forzato
+  // FORCED_SET_RESET_CANCEL: [0x11, 0x02], // Annullamento impostazione/reset forzato
+  // ABORTING_COMMANDS: [0x12, 0x01] // Comandi di annullamento
 };
 
 export const FINS_RESPONSES = {
@@ -89,34 +88,49 @@ export const FINS_RESPONSES = {
 
 export const MEMORY_AREAS = {
   CV: [
-    { name: "CIO", memoryAreaCode: 0xB0, nByte: 2, maxAddress: 6143 },
-    { name: "WR", memoryAreaCode: 0xB1, nByte: 2, maxAddress: 511 },
-    { name: "HR", memoryAreaCode: 0xB2, nByte: 2, maxAddress: 511 },
-    { name: "HR_BIT", memoryAreaCode: 0xB2, nByte: 1, maxAddress: 511 },
-    { name: "AR", memoryAreaCode: 0xB3, nByte: 2, maxAddress: 959 },
-    { name: "TIMER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 2047 },
-    { name: "COUNTER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 2047 },
+    { name: "CIO", memoryAreaCode: 0x80, nByte: 2, maxAddress: 2555 },
+    { name: "CIO_BIT", memoryAreaCode: 0x00, nByte: 1, maxAddress: 6143 },
+    { name: "AR", memoryAreaCode: 0x80, nByte: 2, maxAddress: 959 },
+    { name: "AR_BIT", memoryAreaCode: 0x00, nByte: 1, maxAddress: 6143 },
+    { name: "TIMER", memoryAreaCode: 0x81, nByte: 2, maxAddress: 2047 },
+    { name: "TIMER_BIT", memoryAreaCode: 0x01, nByte: 1, maxAddress: 2047 },
+ //   { name: "COUNTER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 2047 },
+    { name: "DR", memoryAreaCode: 0x9C, nByte: 2, maxAddress: 15 },
     { name: "DM", memoryAreaCode: 0x82, nByte: 2, maxAddress: 24575 },
-    { name: "DM_BIT", memoryAreaCode: 0x02, nByte: 1, maxAddress: 24575 },
-    { name: "TRANSITION", memoryAreaCode: 0x83, nByte: 1, maxAddress: 511 },
-    { name: "STEP", memoryAreaCode: 0x84, nByte: 2, maxAddress: 511 },
-    { name: "ACTION", memoryAreaCode: 0x8B, nByte: 1, maxAddress: 1023 },
-    { name: "IR", memoryAreaCode: 0x8C, nByte: 2, maxAddress: 15 },
-    { name: "DR", memoryAreaCode: 0x8C, nByte: 2, maxAddress: 15 },
     { name: "EM", memoryAreaCode: 0x90, nByte: 2, maxAddress: 24575 }
   ],
   C: [
-    { name: "CIO", memoryAreaCode: 0x30, nByte: 2, maxAddress: 255 },
-    { name: "WR", memoryAreaCode: 0x31, nByte: 2, maxAddress: 63 },
-    { name: "HR", memoryAreaCode: 0x32, nByte: 2, maxAddress: 99 },
-    { name: "HR_BIT", memoryAreaCode: 0x32, nByte: 1, maxAddress: 99 },
-    { name: "AR", memoryAreaCode: 0x33, nByte: 2, maxAddress: 27 },
-    { name: "TIMER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 511 },
-    { name: "COUNTER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 511 },
-    { name: "DM", memoryAreaCode: 0x82, nByte: 2, maxAddress: 9999 },
+    { name: "CIO", memoryAreaCode: 0xB0, nByte: 2, maxAddress: 6143 },
+    { name: "CIO_BIT", memoryAreaCode: 0x30, nByte: 1, maxAddress: 614315 },
+    { name: "AR", memoryAreaCode:  0xB3, nByte: 2, maxAddress: 959 },
+    { name: "AR_BIT", memoryAreaCode: 0x33, nByte: 1, maxAddress: 44751 },
+    { name: "TIMER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 4095 },
+    { name: "TIMER_BIT", memoryAreaCode: 0x09, nByte: 1, maxAddress: 2047 },
+ //   { name: "COUNTER", memoryAreaCode: 0x89, nByte: 2, maxAddress: 4095 },
+    { name: "IR", memoryAreaCode: 0xDC, nByte: 4, maxAddress: 15 },
+    { name: "HR", memoryAreaCode: 0xB2, nByte: 2, maxAddress: 511 },
+    { name: "HR_BIT", memoryAreaCode: 0x32, nByte: 1, maxAddress: 51115 },
+    { name: "DR", memoryAreaCode: 0xBC, nByte: 2, maxAddress: 15 },
+    { name: "DM", memoryAreaCode: 0x82, nByte: 2, maxAddress: 16389 },
     { name: "DM_BIT", memoryAreaCode: 0x02, nByte: 1, maxAddress: 9999 },
-    { name: "EM", memoryAreaCode: 0x92, nByte: 2, maxAddress: 24575 }
+    { name: "WR", memoryAreaCode: 0xB1, nByte: 2, maxAddress: 511 },
+    { name: "WR_BIT", memoryAreaCode: 0x31, nByte: 1, maxAddress: 51115 },
+    { name: "EM", memoryAreaCode: 0xA0, nByte: 2, maxAddress: 3276715 },
+    { name: "EM_BIT", memoryAreaCode: 0x20, nByte: 1, maxAddress: 3276715 }
   ]
+};
+
+
+export const STATUS = {
+  CPU_STANDBY : 0x80,
+  STOP        : 0x00,
+  RUN         : 0x01
+};
+
+export const MODE = {
+  PROGRAM : 0x00,
+  MONITOR : 0x02,
+  RUN     : 0x04
 };
 
 // Configurazione di rete predefinita
@@ -129,4 +143,32 @@ export const DEFAULT_NETWORK_CONFIG = {
 };
 
 // Timeout predefinito per le richieste (in millisecondi)
-export const DEFAULT_TIMEOUT = 10000;
+export const DEFAULT_TIMEOUT = 1000;
+
+type ModeString = "PROGRAM" | "MONITOR" | "RUN";
+
+export function getModeString(data: number): ModeString | null {
+  switch (data) {
+    case MODE.PROGRAM:
+      return "PROGRAM";
+    case MODE.MONITOR:
+      return "MONITOR";
+    case MODE.RUN:
+      return "RUN";
+    default:
+      return null; // Puoi gestire l'errore o il valore non valido come preferisci
+  }
+}
+
+export interface PlcStatus {
+  run : boolean,
+  battery : boolean, 
+  cpuStanby : boolean,
+  mode : ModeString | null
+}
+
+export interface Plcdata {
+  cpuUnitModel : string,
+  cpuUnitinternalSytem: string,
+}
+

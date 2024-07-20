@@ -64,15 +64,15 @@ export class ReadComplexVariableOperation extends BaseOperation {
       }
       return result;
     } else if (dataType.type === 'array') {
-      const result = [];
+      const result : (number | boolean)[] = [];
       let offset = 0;
       for (let i = 0; i < dataType.length!; i++) {
         if (typeof dataType.elementType === 'string') {
           result.push(this.parsePrimitiveType(response.subarray(offset), dataType.elementType));
           offset += this.getSizeOfType(dataType.elementType);
         } else {
-          result.push(this.parseComplexVariableResponse(response.subarray(offset), dataType.elementType));
-          offset += this.getSizeOfComplexType(dataType.elementType);
+          result.push(this.parseComplexVariableResponse(response.subarray(offset), dataType.elementType as ComplexDataType));
+          offset += this.getSizeOfComplexType(dataType.elementType as ComplexDataType);
         }
       }
       return result;
@@ -105,7 +105,7 @@ export class ReadComplexVariableOperation extends BaseOperation {
         sum + (typeof t === 'string' ? this.getSizeOfType(t) : this.getSizeOfComplexType(t)), 0);
     } else if (type.type === 'array') {
       return type.length! * (typeof type.elementType === 'string' ?
-        this.getSizeOfType(type.elementType) : this.getSizeOfComplexType(type.elementType));
+        this.getSizeOfType(type.elementType) : this.getSizeOfComplexType(type.elementType as ComplexDataType));
     }
     throw new Error('Invalid complex type');
   }

@@ -1,5 +1,5 @@
 import net from 'net';
-import { OmronPLCBase, PendingRequest } from './OmronPLCBase';
+import { OmronConfig, OmronPLCBase } from './OmronPLCBase';
 import * as omronConfig from './omronConfig';
 import { OmronTcpError } from './OmronTcpError';
 
@@ -46,14 +46,10 @@ export class OmronPLCTCP extends OmronPLCBase {
         }
     }
 
-
-    constructor(host: string = omronConfig.DEFAULT_NETWORK_CONFIG.HOST,
-        port: number = omronConfig.DEFAULT_NETWORK_CONFIG.TCP_PORT,
-        plcNode: number = omronConfig.DEFAULT_NETWORK_CONFIG.PLC_NODE_NUMBER,
-        pcNode: number = omronConfig.DEFAULT_NETWORK_CONFIG.NODE_NUMBER) {
-        super(host, port, plcNode, pcNode);
+    constructor(config: OmronConfig = {}) {
+        super(config);
         this.client = new net.Socket();
-        this.client.setTimeout(omronConfig.DEFAULT_TIMEOUT * 2)
+        this.client.setTimeout(this.timeoutMs * 2)
         this.client.setNoDelay(true);
         this.client.on('connect', () => {
             this.isConnected = true;
@@ -71,6 +67,7 @@ export class OmronPLCTCP extends OmronPLCBase {
         });
 
         this.client.on('close', () => {
+            this.queue = [];
             this.isConnected = false;
             this.isConnecting = false;
             console.log('Connection closed');
@@ -176,8 +173,9 @@ export class OmronPLCTCP extends OmronPLCBase {
             return;
         }
         else {
-            if (this.buffer.length < 25) {
-                const errorCode = this.buffer.readUInt32BE(12);
+            const packet = this.buffer.subarray(0, totalLength);
+            if (packet.length < 25) {
+                const errorCode = packet.readUInt32BE(12);
                 if (errorCode !== 0x00000000)
                     throw new OmronTcpError(errorCode);
             }
@@ -187,7 +185,7 @@ export class OmronPLCTCP extends OmronPLCBase {
 
                 if (pendingRequest) {
                     // Copia il contenuto di this.buffer in pendingRequest.buffer
-                    pendingRequest.buffer = Buffer.from(this.buffer);
+                    pendingRequest.buffer = Buffer.from(packet);
 
                     // Reimposta this.buffer a un nuovo buffer vuoto
                     this.handleCompleteResponse(sid, pendingRequest);
@@ -196,7 +194,14 @@ export class OmronPLCTCP extends OmronPLCBase {
                     //this.buffer = Buffer.alloc(0);
                 }
             }
-            this.buffer = Buffer.alloc(0);
+            if (this.buffer.length > totalLength)
+            {
+                this.buffer = this.buffer.subarray(totalLength);
+                this.handleData(Buffer.alloc(0));
+            }
+
+            else
+                this.buffer = Buffer.alloc(0);
         }
     }
     private sendConnectionMessage() {
@@ -229,7 +234,7 @@ export class OmronPLCTCP extends OmronPLCBase {
 
                     const sid = this.generateSID();
                     const header = Buffer.from(this.baseHeader);
-                    header[9] = sid;
+                    header[omronConfig.FINS_HEADER_FIELDS.SID] = sid;
 
                     // Costruisci il pacchetto FINS
                     let finsPacket = Buffer.concat([
@@ -257,7 +262,7 @@ export class OmronPLCTCP extends OmronPLCBase {
                         this.requestMap.delete(sid);
                         this.timeOut();
                         reject(new Error('Request timed out'));
-                    }, omronConfig.DEFAULT_TIMEOUT);
+                    }, this.timeoutMs);
 
                     this.requestMap.set(sid, {
                         resolve,
