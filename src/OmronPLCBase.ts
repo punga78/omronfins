@@ -55,7 +55,9 @@ export abstract class OmronPLCBase implements OmronPLCInterface {
 
   protected generateSID(): number {
     this.currentSID = (this.currentSID + 1) % 255;
-    return this.currentSID || 1;
+    if (this.currentSID === 0)
+      this.currentSID++;
+    return this.currentSID;
   }
 
   protected abstract sendCommand(command: number[], params: Buffer, data?: Buffer): Promise<Buffer>;

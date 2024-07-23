@@ -13,43 +13,9 @@ export class OmronPLCTCP extends OmronPLCBase {
     private queue: Array<() => void> = [];
     private processing = true;
 
-    async enqueue(action: () => Promise<void>) {
-        if (!this.isConnected) {
-            throw new Error('Not connected to PLC');
-        }
-
-        return new Promise<void>((resolve) => {
-            this.queue.push(async () => {
-                await action();
-                resolve();
-            });
-            // Avvia la processazione solo se non è già in corso
-            if ((!this.processing) || (!this.firstConnectionPacket())) {
-                this.process();
-            }
-        });
-    }
-
-    private async process() {
-        if (this.processing) return;
-        this.processing = true;
-        while (this.queue.length > 0) {
-            const action = this.queue.shift();
-            if (action) {
-                await action();
-            }
-        }
-        this.processing = false;
-        // Verifica se sono state aggiunte nuove azioni mentre si processava la coda
-        if (this.queue.length > 0) {
-            this.process();
-        }
-    }
-
     constructor(config: OmronConfig = {}) {
         super(config);
         this.client = new net.Socket();
-        this.client.setTimeout(this.timeoutMs * 2)
         this.client.setNoDelay(true);
         this.client.on('connect', () => {
             this.isConnected = true;
@@ -74,46 +40,92 @@ export class OmronPLCTCP extends OmronPLCBase {
         });
     }
 
+    async enqueue(action: () => Promise<void>) {
+        if (!this.isConnected) {
+            return;
+        }
+
+        return new Promise<void>((resolve) => {
+            this.queue.push(async () => {
+                await action();
+                resolve();
+            });
+            // Avvia la processazione solo se non è già in corso
+            if ((!this.processing) || (!this.firstConnectionPacket())) {
+                this.process();
+            }
+        });
+    }
+
+    private async process() {
+        if (this.processing) return;
+        this.processing = true;
+        while (this.queue.length > 0) {
+            const action = this.queue.shift();
+            if (action) {
+                try {
+                    await action();
+                    if (this.queue.length > 0)
+                        await new Promise(r => setTimeout(r, 100));
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+        }
+        this.processing = false;
+        // Verifica se sono state aggiunte nuove azioni mentre si processava la coda
+        if (this.queue.length > 0) {
+            this.process();
+        }
+    }
+
     private firstConnectionPacket(): boolean {
         return (this.clientNode === null) || (this.serverNode === null);
     }
 
-    private async ensureConnected(): Promise<void> {
+    private async ensureConnected(): Promise<boolean> {
         if (this.isConnected) {
-            return;
+            return true;
         }
 
         if (this.isConnecting) {
             // Wait for the existing connection attempt to complete
-            await new Promise<void>((resolve) => {
+            await new Promise<boolean>((resolve, reject) => {
+                let nCount :number = 0;
                 const checkConnection = () => {
+                    nCount++;
                     if (this.isConnected || !this.isConnecting) {
-                        resolve();
+                        resolve(true);
                     } else {
-                        setTimeout(checkConnection, 100);
+                        if (nCount > 10)
+                            reject(false);
+                        setTimeout(checkConnection, 1000);
                     }
                 };
                 checkConnection();
             });
             if (this.isConnected) {
-                return;
+                return true;
             }
         }
 
         this.isConnecting = true;
-        return new Promise<void>((resolve, reject) => {
-            this.client.connect(this.port, this.host, () => {
-                this.isConnected = true;
-                this.isConnecting = false;
-                if (this.firstConnectionPacket())
-                    this.sendConnectionMessage();
-                resolve();
-            });
-
-            this.client.once('error', (err) => {
-                this.isConnecting = false;
-                reject(err);
-            });
+        return new Promise<boolean>((resolve, reject) => {
+            if (this.isConnected) {
+                resolve(true);
+                return;
+            }
+            try {
+                this.client.connect(this.port, this.host, () => {
+                    this.isConnected = true;
+                    this.isConnecting = false;
+                    if (this.firstConnectionPacket())
+                        this.sendConnectionMessage();
+                    resolve(true);
+                });
+            } catch (error) {
+                reject(error);
+            }
         });
     }
 
@@ -153,15 +165,27 @@ export class OmronPLCTCP extends OmronPLCBase {
 
     private handleData(chunk: Buffer): void {
         if (this.firstConnectionPacket()) {
-            this.handleConnectionData(chunk);
-            return;
+            try {
+                this.handleConnectionData(chunk);
+                return;
+            } catch (error) {
+                console.log("firstConnectionPacket", error);
+                this.buffer = Buffer.alloc(0);
+                this.clientNode = null;
+                this.serverNode = null;
+                this.client.end();
+                return;
+            }
         }
         this.buffer = Buffer.concat([this.buffer, chunk]);
-        if (this.buffer.length < 8) {
+        if (this.buffer.length < 4) {
             return;
         }
         if (this.buffer.readUInt32BE(0) !== 0x46494E53) {
             this.buffer = Buffer.alloc(0);
+            return;
+        }
+        if (this.buffer.length < 8) {
             return;
         }
 
@@ -175,27 +199,35 @@ export class OmronPLCTCP extends OmronPLCBase {
         else {
             const packet = this.buffer.subarray(0, totalLength);
             if (packet.length < 25) {
-                const errorCode = packet.readUInt32BE(12);
-                if (errorCode !== 0x00000000)
-                    throw new OmronTcpError(errorCode);
+                try {
+                    const errorCode = packet.readUInt32BE(12);
+                    if (errorCode !== 0x00000000)
+                        throw new OmronTcpError(errorCode);
+
+                } catch (error) {
+                    console.error("packet", error);
+                    this.buffer = Buffer.alloc(0);
+                    this.clientNode = null;
+                    this.serverNode = null;
+                    this.client.end();
+                    return;
+                }
             }
             else {
                 const sid = this.buffer[25];  // SID si trova a questo offset nell'header FINS
                 const pendingRequest = this.requestMap.get(sid);
 
                 if (pendingRequest) {
-                    // Copia il contenuto di this.buffer in pendingRequest.buffer
+                    this.requestMap.delete(sid);
                     pendingRequest.buffer = Buffer.from(packet);
-
-                    // Reimposta this.buffer a un nuovo buffer vuoto
                     this.handleCompleteResponse(sid, pendingRequest);
                 } else {
                     console.warn(`Received response for unknown SID: ${sid}`);
+                    this.requestMap.delete(sid);
                     //this.buffer = Buffer.alloc(0);
                 }
             }
-            if (this.buffer.length > totalLength)
-            {
+            if (this.buffer.length > totalLength) {
                 this.buffer = this.buffer.subarray(totalLength);
                 this.handleData(Buffer.alloc(0));
             }
@@ -221,12 +253,18 @@ export class OmronPLCTCP extends OmronPLCBase {
     }
 
     public async sendCommand(command: number[], params: Buffer, data?: Buffer): Promise<Buffer> {
-        await this.ensureConnected();
+        let error: Error | undefined = undefined;
+        try {
+            await this.ensureConnected();
+        } catch (error) {
+            error = error as Error;
+        }
 
         return new Promise<Buffer>((resolve, reject) => {
             const sendPacket = async () => {
                 try {
-                    await this.ensureConnected();
+                    if (error !== undefined)
+                        reject(error);
 
                     if (this.firstConnectionPacket()) {
                         reject(new Error('Not connected to PLC. Client or Server Node not set.'));
@@ -255,9 +293,6 @@ export class OmronPLCTCP extends OmronPLCBase {
 
                     // Combina l'header TCP e il pacchetto FINS
                     const packet = Buffer.concat([tcpHeader, finsPacket]);
-                    //this.client.write(tcpHeader);
-                    //await new Promise(r => setTimeout(r, 30));
-
                     const timeoutId = setTimeout(() => {
                         this.requestMap.delete(sid);
                         this.timeOut();

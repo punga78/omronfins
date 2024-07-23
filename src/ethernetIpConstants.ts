@@ -49,6 +49,7 @@ export enum CIPService {
   GET_CONNECTION_DATA = 0x56,
   SEARCH_CONNECTION_DATA = 0x57,
   GET_CONNECTION_OWNER = 0x5A,
+  LARGE_FORWARD_OPEN = 0x5B,
 
   // File Object Services
   INITIATE_UPLOAD = 0x4B,
@@ -96,19 +97,15 @@ export enum CIPService {
 }
 
 
-// Stati TCP
-export enum TCPState {
-  CLOSED = 0,
-  LISTEN = 1,
-  SYN_SENT = 2,
-  SYN_RECEIVED = 3,
-  ESTABLISHED = 4,
-  FIN_WAIT_1 = 5,
-  FIN_WAIT_2 = 6,
-  CLOSE_WAIT = 7,
-  CLOSING = 8,
-  LAST_ACK = 9,
-  TIME_WAIT = 10
+export enum EtherNetIPCommand {
+  NOP = 0x00,
+  LIST_SERVICES = 0x04,
+  LIST_IDENTITY = 0x63,
+  LIST_INTERFACES = 0x64,
+  REGISTER_SESSION = 0x65,
+  UNREGISTER_SESSION = 0x66,
+  SEND_RR_DATA = 0x6F,
+  SEND_UNIT_DATA = 0x70
 }
 
 // Struttura di un pacchetto EtherNet/IP
@@ -119,6 +116,36 @@ export interface EtherNetIPPacket {
   status: number;
   senderContext: Buffer;
   options: number;
+  data: Buffer;
+  commandSpecificData?: CommandSpecificData;
+}
+
+export type CommandSpecificData = 
+  | ListServicesData
+  | RegisterSessionData
+  | SendData
+  | null;
+
+export interface ListServicesData {
+  interfaceHandle: number;
+  timeout: number;
+}
+
+export interface RegisterSessionData {
+  protocolVersion: number;
+  optionFlags: number;
+}
+
+export interface SendData {
+  interfaceHandle: number;
+  timeout: number;
+  items: DataItem[];
+}
+
+
+export interface DataItem {
+  type: number;
+  length: number;
   data: Buffer;
 }
 
@@ -139,6 +166,12 @@ export interface EtherNetIPConnection {
   o2tRPI: number;
   t2oRPI: number;
   transportClass: number;
+}
+
+export interface ServiceInfo {
+  serviceType: number;
+  serviceName: string;
+  capabilities: string[];
 }
 
 // Tipi di connessione
@@ -186,6 +219,46 @@ export enum GeneralStatusCode {
   STORE_OPERATION_FAILURE = 0x19
 }
 
+// Mappa degli errori CIP con le loro descrizioni
+export const CIP_ERRORS: { [key: number]: string } = {
+  0x00: "Success",
+  0x01: "Connection Failure",
+  0x02: "Resource Unavailable",
+  0x03: "Invalid parameter value",
+  0x04: "Path segment error",
+  0x05: "Path destination unknown",
+  0x06: "Partial Transfer",
+  0x07: "Connection Lost",
+  0x08: "Service Not Supported",
+  0x09: "Invalid Attribute Value",
+  0x0A: "Attribute List Error",
+  0x0B: "Already In Requested Mode",
+  0x0C: "Object State Conflict",
+  0x0D: "Object Already Exists",
+  0x0E: "Attribute Not Settable",
+  0x0F: "Privilege Violation",
+  0x10: "Device State Conflict",
+  0x11: "Reply Data Too Large",
+  0x12: "Fragmentation of a Primitive Value",
+  0x13: "Not Enough Data",
+  0x14: "Attribute Not Supported",
+  0x15: "Too Much Data",
+  0x16: "Object Does Not Exist",
+  0x17: "Service Fragmentation Sequence Not In Progress",
+  0x18: "No Stored Attribute Data",
+  0x19: "Store Operation Failure",
+  0x1A: "Routing Failure (request packet too large)",
+  0x1B: "Routing Failure (response packet too large)",
+  0x1C: "Missing attribute list entry data",
+  0x1D: "Invalid attribute value list",
+  0x1E: "Embedded service error",
+  0x1F: "Vendor specific error",
+  0x20: "Invalid parameter",
+  0x21: "Write-once value or medium already written",
+  0x22: "Invalid Reply Received",
+  0x25: "Key Failure in path"
+};
+
 export interface DeviceIdentity {
   vendorId: number;
   deviceType: number;
@@ -213,7 +286,7 @@ export interface AssemblyInfo {
 // Definiamo prima alcuni enumeratori e costanti
 
 export enum VendorID {
-  OMRON = 0x0100,
+  OMRON = 0x0000,
   // Aggiungi altri vendor ID se necessario
 }
 
@@ -297,7 +370,7 @@ export enum ObjectClass {
   // Add any other object classes specific to your Omron devices here
 }
 
-enum InstanceID {
+export enum InstanceID {
   CONNECTION_MANAGER = 0x01,
   // Aggiungi altri ID di istanza se necessario
 }
@@ -310,7 +383,7 @@ export enum SegmentType {
 
 export enum SegmentType {
   // Segment Type Bits: 001
-  PORT_SEGMENT = 0x00,
+  PORT_SEGMENT = 0x01,
 
   // Segment Type Bits: 010
   LOGICAL_SEGMENT = 0x20,
@@ -387,7 +460,44 @@ export interface ComplexDataType {
   length?: number;
 }
 
-export const DEFAULT_PRIORITY_TIME_TICK = 0x0100;
-export const CONNECTION_TIMEOUT_MULTIPLIER = 0x04;
+export const Types = {
+  BOOL: 0xc1,
+  SINT: 0xc2,
+  INT: 0xc3,
+  DINT: 0xc4,
+  LINT: 0xc5,
+  USINT: 0xc6,
+  UINT: 0xc7,
+  UDINT: 0xc8,
+  REAL: 0xca,
+  LREAL: 0xcb,
+  STIME: 0xcc,
+  DATE: 0xcd,
+  TIME_AND_DAY: 0xce,
+  DATE_AND_STRING: 0xcf,
+  STRING: 0xd0,
+  WORD: 0xd1,
+  DWORD: 0xd2,
+  BIT_STRING: 0xd3,
+  LWORD: 0xd4,
+  STRING2: 0xd5,
+  FTIME: 0xd6,
+  LTIME: 0xd7,
+  ITIME: 0xd8,
+  STRINGN: 0xd9,
+  SHORT_STRING: 0xda,
+  TIME: 0xdb,
+  EPATH: 0xdc,
+  ENGUNIT: 0xdd,
+  STRINGI: 0xde,
+  STRUCT: 0xa002
+};
+
+export const DEFAULT_PRIORITY_TIME_TICK = 0xEA06;
+export const CONNECTION_TIMEOUT_MULTIPLIER = 0x00;
+export const CONNECTION_ADDRESS_ITEM = 0xA1;
+export const NULL_ADDRESS_ITEM = 0x00;
+export const CONNECTION_DATA_ITEM = 0xB1;
+export const UNCONNECTED_DATA_ITEM = 0xB2;
 export const HEADER_FORMAT_32BIT = 0x02;
 export const CONNECTION_PATH_SIZE = 5;  // in 16-bit words

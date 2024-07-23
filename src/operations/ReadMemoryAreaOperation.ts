@@ -24,11 +24,13 @@ export class ReadMemoryAreaOperation extends BaseOperation {
     }
     generatePacket(): CIPPacket {
         const { area, offset } = this.decodeAddress(this.address);
-        const path = Buffer.from([SegmentType.CLASS_ID, area, SegmentType.INSTANCE_ID, ...this.numberToBuffer(offset, 2)]);
-        const data = Buffer.from([...this.numberToBuffer(this.size, 2)]);
+        const path = Buffer.from([0x2F, 0x03, 0x08, 0x3E, 0x10, 0x10]);
+//        const path = Buffer.from([SegmentType.CLASS_ID, area, SegmentType.INSTANCE_ID, ...this.numberToBuffer(offset, 2)]);
+        const data = Buffer.alloc(0);
+//        const data = Buffer.from([...this.numberToBuffer(this.size, 2)]);
 
         return {
-            service: CIPService.GET_ATTRIBUTE_ALL,
+            service: 0x1D,
             path: path,
             data: data
         };

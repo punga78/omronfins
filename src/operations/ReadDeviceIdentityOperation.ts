@@ -31,7 +31,7 @@ export class ReadDeviceIdentityOperation extends BaseOperation {
 
 
     parseResponse(response: Buffer): DeviceIdentity {
-        let offset = 0;
+        let offset = 2;
 
         const identity: DeviceIdentity = {
             vendorId: response.readUInt16LE(offset),

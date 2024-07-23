@@ -25,6 +25,10 @@ export class ReadOperation extends BaseOperation {
         path.push(0); // Padding
       }
     });
+    segments.forEach((segment, index) => {
+      path.push(0x28); // Symbolic segment
+      path.push(index + 1); // Symbolic segment
+    });
 
     return Buffer.from(path);
   }
@@ -32,30 +36,19 @@ export class ReadOperation extends BaseOperation {
   generatePacket(): CIPPacket {
     const path = this.createPathForTag(this.variable);
     return {
-      service: CIPService.GET_ATTRIBUTE_SINGLE, // Esempio di servizio CIP per la lettura
+      service: CIPService.GET_AND_CLEAR, // Esempio di servizio CIP per la lettura
       path: path,
       data: Buffer.alloc(0) // Dati vuoti per l'operazione di lettura
     };
   }
 
   parseResponse(response: Buffer): any {
-    if (response.length === 1) {
-        return response.readUInt8(0) !== 0; // Boolean
-    } else if (response.length === 2) {
-        return response.readInt16LE(0); // 16-bit integer
-    } else if (response.length === 4) {
-        return response.readFloatLE(0); // 32-bit float
-    } else {
-        return response.toString('utf8'); // String
-    }
-
-
-/*    switch (this.dataType) {
+    switch (this.dataType) {
       case 'BOOL': return response.readUInt8(0) !== 0;
       case 'INT': return response.readInt16LE(0);
       case 'DINT': return response.readInt32LE(0);
       case 'REAL': return response.readFloatLE(0);
       default: throw new Error(`Unsupported type: ${this.dataType}`);
-    }*/
+    }
   }
 }

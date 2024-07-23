@@ -7,7 +7,8 @@ async function example() {
     protocol: 'tcp',
     plcNode: 1,
     pcNode: 10,
-    pollingInterval: 1200  // 1 secondo
+    pollingInterval: 200,  // 1 secondo
+    timeout :2000
   });
 
   try {
@@ -18,10 +19,11 @@ async function example() {
     manager.addMemoryArea('A0040', 'A0040', 10, true);   // Inizialmente in autoread
     manager.addMemoryArea('A47', 'a47.0', 16, true);   // Inizialmente in autoread
     manager.addMemoryArea('T0', 'T0', 10, true);   // Inizialmente in autoread
+    //manager.addMemoryArea('DR0', 'DR0', 1, true);   // Inizialmente in autoread
     manager.addMemoryArea('T0COM', 'T0.0', 10, true);   // Inizialmente in autoread
     manager.addMemoryArea('D200', 'D200', 40, true);   // Inizialmente in autoread
     manager.addMemoryArea('D0000221', 'D0000221.0', 32, true);   // Inizialmente in autoread
-    //manager.addMemoryArea('E0_000221', 'E0_000221.0,S', 32, true);   // Inizialmente in autoread
+    manager.addMemoryArea('E0_000221', 'E0_000221,A', 32, true);   // Inizialmente in autoread
     manager.addMemoryArea('OGGI', 'D16270,A', 60, true);   // Inizialmente in autoread
 
 
@@ -98,7 +100,7 @@ async function example() {
       manager.printStatisic();
       manager.stop();
       console.log('Manager stopped');
-    }, 180000);  // Dopo 60 secondi
+    }, 1800000);  // Dopo 30 minuti
   } catch (error) {
     manager.stop();
     console.log('Manager stopped', error);

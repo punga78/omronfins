@@ -60,6 +60,24 @@ export class OmronPLCManager extends EventEmitter {
       this.stopPolling();
     }
   }
+  
+  public countAutoReadAreas(): number {
+    return this.memoryAreas.filter(area => area.autoRead).length;
+  }  
+  
+  /*private updatePollingMultiplier(): void {
+    const autoReadCount = this.countAutoReadAreas();
+    if (autoReadCount > 0) {
+      this.pollingInterval = this.basePollingInterval * autoReadCount;
+    } else {
+      this.pollingInterval = this.basePollingInterval;
+    }
+    if (this.pollingTimer) {
+      this.stopPolling();
+      this.startPolling();
+    }
+    console.log(`Updated polling interval: ${this.pollingInterval}`);
+  }*/
 
   public async readMemoryArea(name: string): Promise<number[] | string> {
     const area = this.getMemoryArea(name);
@@ -94,7 +112,7 @@ export class OmronPLCManager extends EventEmitter {
 
   private startPolling(): void {
     if (!this.pollingTimer) {
-      this.pollingTimer = setInterval(() => this.pollMemoryAreas(), this.pollingInterval);
+      this.pollingTimer = setInterval(() => this.pollMemoryAreas(), this.pollingInterval * this.countAutoReadAreas());
     }
   }
 
@@ -123,6 +141,7 @@ export class OmronPLCManager extends EventEmitter {
             area.lastValue = newValue;
             this.emit('dataChanged', area.name, newValue);
           }
+          await new Promise(r => setTimeout(r, this.pollingInterval));
         } catch (error) {
           this.emit('error', error, area.name);
         }

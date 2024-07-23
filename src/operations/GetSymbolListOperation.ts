@@ -8,7 +8,7 @@ export class GetSymbolListOperation extends BaseOperation {
     }
 
     generatePacket(): CIPPacket {
-        const path = Buffer.from([SegmentType.CLASS_ID, ObjectClass.SYMBOL, SegmentType.INSTANCE_ID, 0x00]);
+        const path = Buffer.from([SegmentType.CLASS_ID, ObjectClass.SYMBOL, SegmentType.INSTANCE_ID, 0x01, 0x91, 0x00]);
         return {
             service: CIPService.GET_ATTRIBUTE_ALL,
             path: path,
